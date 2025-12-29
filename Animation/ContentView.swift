@@ -28,6 +28,48 @@ struct ContentView: View {
     @State private var isOrderPlaced = false
     @State private var showOnlyCheckmark = false
     @State private var showContinueShopping = false
+    @State private var arrowProgress: CGFloat = 0.0
+    
+    // MARK: - Arrow Arc Animation Helpers
+    /// Calculate the arrow's X position along the arc path
+    private func arrowXPosition(progress: CGFloat) -> CGFloat {
+        // Start: over the "G" in "Shopping" (much more to the left, around the "G" position)
+        let startX: CGFloat = 75  // Moved further left to position over "G"
+        // End: right side of text
+        let endX: CGFloat = 100
+        
+        return startX + (endX - startX) * progress
+    }
+    
+    /// Calculate the arrow's Y position along the arc path (creates the parabolic curve)
+    private func arrowYPosition(progress: CGFloat) -> CGFloat {
+        // Start: top border of button
+        let startY: CGFloat = -22
+        // Apex of arc (dips down below center)
+        let midY: CGFloat = 8
+        // End: vertically centered
+        let endY: CGFloat = 0
+        
+        // Create visible parabolic arc
+        if progress < 0.6 {
+            // Dropping phase - go from top to below center
+            let dropProgress = progress / 0.6
+            return startY + (midY - startY) * dropProgress * dropProgress
+        } else {
+            // Rising/settling phase
+            let riseProgress = (progress - 0.6) / 0.4
+            return midY + (endY - midY) * riseProgress
+        }
+    }
+
+    private func animate() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + animationDuration + 0.5 + 0.6 + 0.5 + animationDuration + 0.3) {
+            // Use linear animation so progress moves smoothly through each point
+            withAnimation(.linear(duration: 0.6)) {  // Reduced from 1.5 to 0.6 seconds
+                arrowProgress = 1.0
+            }
+        }
+    }
 
     // MARK: - Body
     var body: some View {
@@ -124,6 +166,11 @@ struct ContentView: View {
                                 showContinueShopping = true
                             }
                         }
+                        
+                        // Phase 4: Show arrow with arc bounce animation
+
+                        animate()
+
                     } label: {
                         GeometryReader { geometry in
                             ZStack {
@@ -153,13 +200,21 @@ struct ContentView: View {
                                 .offset(y: showContinueShopping ? -44 : 0) // Slide up when Continue Shopping appears
                                 
                                 // Phase 3 content: "Continue Shopping" sliding up from bottom
-                                HStack(spacing: 8) {
-                                    Text("Continue Shopping")
-                                        .font(.system(size: 20, weight: .medium))
-                                        .foregroundColor(.white)
-                                }
-                                .frame(width: geometry.size.width, height: 44)
-                                .offset(y: showContinueShopping ? 0 : 44) // Slide up from below
+                                Text("Continue Shopping")
+                                    .font(.system(size: 20, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .frame(width: geometry.size.width, height: 44)
+                                    .offset(y: showContinueShopping ? 0 : 44)
+                                
+                                // Phase 4: Arrow with arc drop animation - positioned absolutely
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .offset(
+                                        x: arrowXPosition(progress: arrowProgress),
+                                        y: arrowYPosition(progress: arrowProgress)
+                                    )
+                                    .opacity(arrowProgress > 0 ? 1 : 0)
                             }
                             .clipped() // Clip the sliding content
                         }
